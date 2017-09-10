@@ -1,7 +1,11 @@
 package main
 
-import "github.com/jamesrf/goeds/eds"
-import "github.com/spf13/viper"
+import (
+	"fmt"
+
+	"github.com/jamesrf/goeds/eds"
+	"github.com/spf13/viper"
+)
 
 func main() {
 	viper.AddConfigPath(".")
@@ -9,10 +13,32 @@ func main() {
 
 	c := eds.NewConnection()
 
-	err := c.AuthenticateIP()
+	var err error
+	u := viper.GetString("username")
+	p := viper.GetString("password")
+
+	if u != "" && p != "" {
+		err = c.AuthenticateUser(u, p)
+	} else {
+		err = c.AuthenticateIP()
+	}
 	if err != nil {
 		panic(err)
 	}
-	ses, err := c.CreateSession(viper.GetString("customerID"), true)
-	c.EndSession(ses)
+
+	cid := viper.GetString("customerID")
+
+	ses, err := c.CreateSession(cid, true)
+	if err != nil {
+		panic(err)
+	}
+	defer c.EndSession(ses)
+
+	srm := eds.NewTestSearch()
+	sr, err := ses.Search(srm)
+
+	for _, r := range sr.SearchResult.Data.Records {
+		fmt.Println(r.RecordInfo.BibRecord.BibEntity.Titles[0].TitleFull)
+	}
+
 }
